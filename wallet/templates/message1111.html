@@ -1,0 +1,126 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title> 可编辑表格</title>
+   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+       <link href="/static/assets/css/dpl-min.css" rel="stylesheet" type="text/css" />
+    <link href="/static/assets/css/bui-min.css" rel="stylesheet" type="text/css" />
+    <link href="/static/assets/css/page-min.css" rel="stylesheet" type="text/css" />   <!-- 下面的样式，仅是为了显示代码，而不应该在项目中使用-->
+   <link href="/static/assets/css/prettify.css" rel="stylesheet" type="text/css" />
+   <style type="text/css">
+    code {
+      padding: 0px 4px;
+      color: #d14;
+      background-color: #f7f7f9;
+      border: 1px solid #e1e1e8;
+    }
+   </style>
+ </head>
+ <body>
+
+  <div class="container">
+    <div id="grid"></div>
+    <p>
+      <button id="btnSave" class="button button-primary">提交</button>
+    </p>
+    <h2>提交结果</h2>
+    <div class="row">
+      <div id="log" class="well span12">
+
+      </div>
+    </div>
+  </div>
+  <script type="text/javascript" src="/static/assets/js/jquery-1.8.1.min.js"></script>
+  <script type="text/javascript" src="/static/assets/js/bui-min.js"></script>
+
+  <script type="text/javascript" src="/static/assets/js/config-min.js"></script>
+  <script type="text/javascript">
+    BUI.use('common/page');
+  </script>
+  <!-- 仅仅为了显示代码使用，不要在项目中引入使用-->
+  <script type="text/javascript" src="/static/assets/js/prettify.js"></script>
+
+<script type="text/javascript">
+  BUI.use(['bui/grid','bui/data'],function (Grid,Data) {
+      var store_data =[];
+      $.ajax({
+         type : "get",
+          url : "/get_message",
+          data : 1,
+          async : false,
+          success : function(data){
+            store_data = data;
+          }
+
+     });
+    var columns = [{title : '消息名',dataIndex :'msg_name',editor : {xtype : 'text',rules:{required:true}}},
+            {title : '内容',dataIndex :'msg_content',width:200,editor : {xtype : 'text',rules:{required:true}}}
+
+          ],
+      store = new Data.Store({
+        data:store_data
+      }),
+      editing = new Grid.Plugins.CellEditing(),
+      grid = new Grid.Grid({
+        render : '#grid',
+        columns : columns,
+        width : 700,
+        forceFit : true,
+        store : store,
+        plugins : [Grid.Plugins.CheckSelection,editing],
+        tbar:{
+            items : [{
+              btnCls : 'button button-small',
+              text : '<i class="icon-plus"></i>添加',
+              listeners : {
+                'click' : addFunction
+              }
+            },
+            {
+              btnCls : 'button button-small',
+              text : '<i class="icon-remove"></i>删除',
+              listeners : {
+                'click' : delFunction
+              }
+            }]
+        }
+
+      });
+    grid.render();
+
+    function addFunction(){
+      var newData = {msg_name :''};
+      store.add(newData);
+      editing.edit(newData,'msg_name'); //添加记录后，直接编辑
+    }
+
+    function delFunction(){
+      var selections = grid.getSelection();
+      store.remove(selections);
+    }
+    var logEl = $('#log');
+    $('#btnSave').on('click',function(){
+      if(editing.isValid()){
+        var records = store.getResult();
+        console.log(records);
+        $.ajax({
+         type : "post",
+          url : "/get_message",
+          data : JSON.stringify(records),
+          dataType: 'json',
+          async : false,
+          success : function(data){
+            if(window.console){
+                    alert("提交成功!");
+                 }
+          }
+
+     });
+        logEl.text(BUI.JSON.stringify(records));
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

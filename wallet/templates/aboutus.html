@@ -1,0 +1,113 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title> 资源文件结构</title>
+     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+     <link href="/static/assets/css/dpl-min.css" rel="stylesheet" type="text/css" />
+     <link href="/static/assets/css/bui-min.css" rel="stylesheet" type="text/css" />
+     <link href="/static/assets/css/page-min.css" rel="stylesheet" type="text/css" />
+     <!--<link href="/static/kindeditor/themes/default/default.css" rel="stylesheet" type="text/css" />-->
+     <link href="/static/kindeditor/themes/qq/qq.css" rel="stylesheet" type="text/css" />
+     <style>
+         .appinfo {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            padding: 1px;
+            margin: 1px;
+         }
+     </style>
+ </head>
+ <body style="width: 100vw; height: 100vh;">
+  <div class="container" style="width: 95%; height: 95%;">
+      <div class="well well-small appinfo">
+          <span>编辑的APPID：<span id="appid_name">DianDian</span></span>
+          <span>上一次编辑人：<span id="editer">DianDian</span></span>
+          <span>上一次编辑时间：<span id="edit_time">xxxxxx</span></span>
+          <span>【鼠标点击这里，再按Ctrl+S提交保存，或者点击右边按钮保存！！！】</span>
+          <button onclick="save_content()">提交保存</button>
+      </div>
+      <textarea id="description" name="description" style="width: 100%; height: 100%"></textarea>
+  </div>
+  <script type="text/javascript" src="/static/assets/js/jquery-1.8.1.min.js"></script>
+  <script type="text/javascript" src="/static/assets/js/bui-min.js"></script>
+  <!-- 如果不使用页面内部跳转，则下面 script 标签不需要,同时不需要引入 common/page -->
+  <script type="text/javascript" src="/static/kindeditor/kindeditor-all-min.js"></script>
+  <script type="text/javascript" src="/static/kindeditor/lang/zh-CN.js"></script>
+  <script type="text/javascript">
+      // document.onkeydown = function(e) {
+      //     console.log(e);
+      // };
+      KindEditor.ready(function (K) {
+          var options = {
+              width: '100%',
+              height: '600px',
+              filterMode : true,
+              afterCreate: function () {
+                  K.ctrl(document, 83, save_content);
+              }
+          };
+          editor = K.create('#description', options);
+          editor.html("正在从服务器上拉取数据，请稍等....");
+      });
+      $.get('/main/api/aboutus/', {"appid": "diandian"}).success(function (data) {
+          if(data.code === "fail") {
+              $("#appid_name").text("未知");
+              $("#editer").text("未知");
+              $("#edit_time").text("未知");
+              editor.html(data.error);
+          }else{
+              if(data.appid !== undefined) {
+                  $("#appid_name").text(data.appid);
+              }else{
+                  $("#appid_name").text("");
+              }
+              if(data.editer !== undefined){
+                  $("#editer").text(data.editer);
+              }else{
+                  $("#editer").text("");
+              }
+              if(data.edit_time !== undefined){
+                  $("#edit_time").text(data.edit_time);
+              }else{
+                  $("#edit_time").text("");
+              }
+              if(data.content !== undefined) {
+                  editor.html(data.content);
+              }else{
+                  editor.html("从服务器上获得的内容不正常！！！");
+              }
+          }
+      }).error(function () {
+          $("#appid_name").text("未知");
+          $("#editer").text("未知");
+          $("#edit_time").text("未知");
+          editor.html("数据请求失败！！！");
+      });
+      function save_content() {
+          $.ajax({
+              type: "POST",
+              dataType: 'json',
+              url: "/main/api/aboutus/",
+              cache: false,
+              contentType: 'application/json',
+              data: JSON.stringify({
+                  "appid": "diandian",
+                  "content": editor.html(),
+                  "editer": "diandian",
+              }),  //传送的数据
+              error:function(){
+                 alert("数据请求失败！！！");
+              },
+              success: function (data) {
+                 if(window.console){
+                    alert("数据提交成功！！！");
+                 }
+              }
+          });
+          // alert(editor.html());
+      }
+  </script>
+</body>
+</html>

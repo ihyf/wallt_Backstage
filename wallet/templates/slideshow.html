@@ -1,0 +1,362 @@
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <title> 搜索表单</title>
+   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+       <link href="/static/assets/css/dpl-min.css" rel="stylesheet" type="text/css" />
+    <link href="/static/assets/css/bui-min.css" rel="stylesheet" type="text/css" />
+    <link href="/static/assets/css/page-min.css" rel="stylesheet" type="text/css" />   <!-- 下面的样式，仅是为了显示代码，而不应该在项目中使用-->
+   <link href="/static/assets/css/prettify.css" rel="stylesheet" type="text/css" />
+   <style type="text/css">
+    code {
+      padding: 0px 4px;
+      color: #d14;
+      background-color: #f7f7f9;
+      border: 1px solid #e1e1e8;
+    }
+    .bui-grid-cell-inner {
+        height: 100px;
+    }
+    .img_box{
+        height: 100%;
+        display: flex;
+        justify-content: space-around;
+        align-content: center;
+    }
+    .img_box > img {
+        width: 33%;
+        height: 100%;
+    }
+   </style>
+ </head>
+ <body>
+  <div class="container">
+    <div class="row">
+      <form id="searchForm" class="form-horizontal span24">
+        <div class="row">
+        </div>
+      </form>
+    </div>
+    <div class="search-grid-container">
+      <div id="grid"></div>
+    </div>
+  </div>
+  <div id="content" class="hide">
+      <form id="J_Form" class="form-horizontal" action="">
+        <div class="row">
+          <div class="control-group span15">
+            <label class="control-label"><s>*</s>套图名：</label>
+            <div class="controls ">
+              <input name="slide_show_name" style="width:300px;" type="text" data-rules="{required:true}" class="input-normal control-text">
+            </div>
+          </div>
+        <div class="row">
+          <div class="control-group span15">
+            <label class="control-label">套图描述：</label>
+            <div class="controls control-row4">
+              <textarea name="description" class="input-large" type="text" style="overflow:scroll; overflow-x:hidden;resize: none; width:400px;"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="control-group span25">
+            <label class="control-label">是否包含图片：</label>
+            <div class="controls" >
+              <select id="containspics" name="containspics">
+                <option value="yes">包含图片</option>
+                <option value="no">不含图片</option>
+              </select>
+            </div>
+            <span id="warning_yes">【如记录（序号）已存在，会覆盖原有图片】</span>
+          </div>
+        </div>
+        <div class="row">
+          <div class="control-group  span15">
+            <label class="control-label">图片[可多张]：</label>
+            <div class="controls control-row4">
+              <input type="file" name="images" id="all_pictures" accept=".jpg,.png,.jpeg" multiple required>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+            <span id="mymessage"></span>
+        </div>
+        </div>
+      </form>
+    </div>
+  <div id="outerdiv" style="position:fixed;top:0;left:0;background:rgba(0,0,0,0.7);z-index:2;width:100%;height:100%;display:none;">
+    <div id="innerdiv" style="position:absolute;">
+        <img id="bigimg" style="border:5px solid #fff;" src="" />
+    </div>
+  </div>
+  <script type="text/javascript" src="/static/assets/js/jquery-1.8.1.min.js"></script>
+  <script type="text/javascript" src="/static/assets/js/bui-min.js"></script>
+  <script type="text/javascript" src="/static/assets/js/config-min.js"></script>
+<script type="text/javascript">
+BUI.use('common/page');
+</script>
+<script type="text/javascript">
+    BUI.use('common/search', function (Search) {
+        let enumObj = {},
+        editing = new BUI.Grid.Plugins.DialogEditing({
+            contentId : 'content', //设置隐藏的Dialog内容
+            autoSave : false, //添加数据或者修改数据时，自动保存
+            triggerCls : 'btn-edit',
+        }),
+        columns = [
+            {title:'序号', dataIndex:'id', width:'3%'},
+            {title:'套图名称', dataIndex:'slide_show_name', width:'10%'},
+            {title:'套图描述', dataIndex:'description', width:'20%'},
+            {title:'图片数量', dataIndex:'images_num', width:'5%'},
+            {title:'图片预览', dataIndex:'images', width:'50%', renderer : function(value, obj){
+                let t_span = document.createElement('span');
+                t_span.className = "img_box";
+                for(let img in value){
+                    let t_img = document.createElement('img');
+                    t_img.src = value[img];
+                    t_img.title = img;
+                    t_img.className = "pimg";
+                    t_span.appendChild(t_img);
+                }
+                return t_span.outerHTML;
+            }},
+            {title:'操作', dataIndex:'', width:'10%', renderer : function(value, obj){
+                    var editStr = '<span class="grid-command btn-edit" id="edit_this_message" title="编辑">编辑</span>',
+                    delStr = '<span class="grid-command btn-del" title="删除">删除</span>'; //页面操作不需要使用Search.createLink
+                    return editStr + delStr;
+                }
+            }
+        ],
+        store = Search.createStore('/main/api/slideshow/', {
+            pageSize: 10,
+            // autoLoad: true,
+            // proxy: {
+            // save: { //也可以是一个字符串，那么增删改，都会往那么路径提交数据，同时附加参数saveType
+            //         addUrl : '/main/api/slideshow/',
+            //         updateUrl : '/main/api/slideshow/',
+            //         removeUrl : '/main/api/slideshow/'
+            //     },
+            //     method : 'GET'
+            // },
+            // autoSync : true //保存数据后，自动更新
+        }),
+        gridCfg = Search.createGridCfg(columns, {
+            tbar: {
+                items: [
+                    {text: '<i class="icon-plus"></i>新建', btnCls: 'button button-small', handler:addFunction},
+                    {text: '<i class="icon-remove"></i>删除', btnCls: 'button button-small', handler:delFunction}
+                ]
+            },
+            plugins : [editing, BUI.Grid.Plugins.CheckSelection, BUI.Grid.Plugins.AutoFit] // 插件形式引入多选表格
+        });
+        files_content = {};
+        let myinput = document.getElementById("all_pictures");
+        myinput.addEventListener('change', readFile, false);
+        let myselect = document.getElementById("containspics");
+        myselect.addEventListener('change', changeSelect, false);
+        // let mycontent = document.getElementById("J_Form");
+        // mycontent.addEventListener("change", initcheckout);
+        // $("#J_Form").show("slow", initcheckout);
+        // function initcheckout() {
+        //     $("#checkcontains").prop({checked: true});
+        // }
+        function changeSelect() {
+            if($("#containspics option:selected").val() === "no"){
+                $("#all_pictures").attr('disabled', true);
+            }else{
+                $("#all_pictures").attr('disabled', false);
+            }
+        }
+        function readFile(){
+            // let files = $('#all_pictures').prop('files');
+            if($("#containspics option:selected").val() === "no"){
+                files_content = {};
+                return false;
+            }
+            let files = this.files;
+            files_content = {};
+            if(files.length === 0 || files.length === undefined){
+                alert("至少一张图片！！！");
+                myinput.value = '';
+                return false;
+            }
+            if(files.length > 3){
+                alert("图片不能超过3张！！！");
+                myinput.value = '';
+                return false;
+            }
+            if(files.length !== 0){
+                for(let i = 0; i < files.length; i++){
+                    let fileobj = files[i];
+                    if(fileobj.size > 2097152){  // 2097152
+                        alert("图片不能超过两个2m!：[" + fileobj.name + "]");
+                        // $("#all_pictures").value = '';
+                        myinput.value = '';
+                        return false;
+                    }
+                    let reader = new FileReader();
+                    reader.readAsDataURL(fileobj);
+                    reader.onload = function(evt) {
+                        files_content[fileobj.name] = evt.target.result
+                    };
+                    reader.onerror = function (evt) {
+                        alert("数据处理出现错误：" + fileobj.name);
+                    }
+                }
+            }
+            // console.log(files_content);
+        }
+        editing.on("accept", function () {
+            grid = editing.get('grid');
+            store = grid.get('store');
+            let record = editing.get('record');
+            record['pics'] = files_content;
+            let new_record = JSON.stringify(record);
+            upload_pics(new_record);
+            // search.load(false);
+            myinput.value = '';
+            files_content = {};
+            $("#all_pictures").attr('disabled', false);
+        });
+        editing.on("cancel", function () {
+            $("#all_pictures").attr('disabled', false);
+        });
+        search = new Search({
+            store : store,
+            gridCfg : gridCfg
+        });
+        // console.log(search);
+        grid = search.get('grid');
+        grid.on("click", function (p1) {
+            var _this = $(p1['domTarget']);
+            imgShow("#outerdiv", "#innerdiv", "#bigimg", _this);
+        });
+        search_store = search.get('store');
+
+        function addFunction(){
+            var newData = {isNew : true}; // 标志是新增加的记录
+            editing.add(newData, 'name'); // 添加记录后，直接编辑
+        }
+        function delFunction(){
+            var selections = grid.getSelection();
+            delItems(selections);
+        }
+
+        function delItems(items){
+            var ids = [];
+            BUI.each(items, function(item){
+                ids.push(item.id);
+            });
+
+            if(ids.length){
+                BUI.Message.Confirm('确认要删除选中的记录么？', function(){
+                    store.save('remove',{ids : ids});
+                    // search.load(false);
+                    flushpage();
+                }, 'question');
+            }
+        }
+
+        // 监听事件，删除一条记录
+        grid.on('cellclick', function(ev){
+            // console.log("cellclick");
+            var sender = $(ev.domTarget); //点击的Dom
+            if(sender.hasClass('btn-del')){
+                var record = ev.record;
+                delItems([record]);
+            }
+        });
+        function flushpage(){
+            setTimeout(flushaction, 1000);
+        }
+        function flushaction(){
+            search.load(false);
+        }
+        search_store.on('update', function () {
+            flushpage();
+        });
+        search_store.on('add', function () {
+            flushpage();
+        })
+    });
+    function upload_pics(upload_data) {
+      $.ajax({
+          type: "POST",
+          dataType: 'json',
+          url: "/main/api/slideshow/",
+          cache: false,
+          contentType: 'application/json',
+          data: upload_data,
+          async: false,
+          error:function(){
+             alert("数据请求失败！！！");
+          },
+          success: function (data) {
+              if (data['result'] === 'ok') {
+                  // if (window.console) {
+                  //     alert("数据提交成功！！！");
+                  // }
+              }else if(data['result']){
+                  alert("服务器返回错误：" + data['result']);
+              }else{
+                  alert("服务器返回异常：" + data);
+              }
+          }
+      });
+      // alert(editor.html());
+    }
+    // $("#checkcontains").prop({checked: true});
+    // $("#checkcontains").attr("checked", "true");
+    // let cps = document.getElementById("checkcontains");
+    // cps.setAttribute("checked", "true");
+    // console.log(cps);
+    // console.log($("#checkcontains").prop('checked'));
+    // if($("#checkcontains").prop('checked')){
+    //     alert("我选中啦！！");
+    //     $("#checkcontains").prop({checked:true});
+    // }
+    $(function(){
+        $(".pimg").click(function(){
+            var _this = $(this);//将当前的pimg元素作为_this传入函数
+            imgShow("#outerdiv", "#innerdiv", "#bigimg", _this);
+        });
+    });
+
+    function imgShow(outerdiv, innerdiv, bigimg, _this){
+        var src = _this.attr("src");
+        // $(bigimg).attr("src", src);
+        // $("<img/>").attr("src", src).load(function(){
+        $(bigimg).attr("src", src).load(function(){
+            var windowW = $(window).width();
+            var windowH = $(window).height();
+            var realWidth = this.width;
+            var realHeight = this.height;
+            var imgWidth, imgHeight;
+            var scale = 0.8;
+            if(realHeight > windowH*scale) {
+                imgHeight = windowH * scale;
+                imgWidth = imgHeight / realHeight * realWidth;
+                if(imgWidth > windowW * scale) {
+                    imgWidth = windowW*scale;
+                }
+            } else if(realWidth > windowW*scale) {
+                imgWidth = windowW * scale;
+                imgHeight = imgWidth / realWidth * realHeight;
+            } else {
+                imgWidth = realWidth;
+                imgHeight = realHeight;
+            }
+            $(bigimg).css("width", imgWidth);
+            var w = (windowW - imgWidth) / 2;
+            var h = (windowH - imgHeight) / 2;
+            $(innerdiv).css({"top":h, "left":w});
+            $(outerdiv).fadeIn("fast");
+            // console.log(this);
+        });
+        $(outerdiv).click(function(){
+            $(this).fadeOut("fast");
+        });
+    }
+</script>
+</body>
+</html>
