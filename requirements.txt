@@ -11,7 +11,7 @@ Flask-Redis==0.3.0
 idna==2.8
 IPy==0.83
 itsdangerous==1.1.0
-Jinja2==2.10
+Jinja2==2.11.3
 json-rpc==1.11.1
 MarkupSafe==1.1.0
 pycparser==2.19
